@@ -3,6 +3,7 @@ package com.citrus.claudemcpclient.core.di
 import com.citrus.claudemcpclient.core.network.MCPToolsService
 import com.citrus.claudemcpclient.data.repository.MCPToolsRepository
 import com.citrus.claudemcpclient.data.datasource.MCPToolsRemoteDataSource
+import com.citrus.claudemcpclient.domain.usecase.MCPToolsUseCase
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -25,4 +26,9 @@ object MCPToolsModule {
     @Singleton
     fun provideMCPToolsRepository(dataSource: MCPToolsRemoteDataSource): MCPToolsRepository =
         MCPToolsRepository(dataSource)
+
+    @Provides
+    @Singleton
+    fun provideMCPToolsUseCase(repository: MCPToolsRepository): MCPToolsUseCase =
+        MCPToolsUseCase(repository)
 }
