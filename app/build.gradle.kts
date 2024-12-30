@@ -59,7 +59,8 @@ android {
 
 dependencies {
     // MCP SDK
-    implementation("io.modelcontextprotocol:kotlin-sdk:0.2.0")
+    implementation(libs.kotlin.sdk)
+
 
     // Core Android
     implementation("androidx.core:core-ktx:1.12.0")

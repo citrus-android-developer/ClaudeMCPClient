@@ -7,7 +7,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
-import io.modelcontextprotocol.kotlin.sdk.model.Tool
+import io.modelcontextprotocol.kotlin.sdk.Tool
 import kotlinx.serialization.json.Json
 
 @Composable
