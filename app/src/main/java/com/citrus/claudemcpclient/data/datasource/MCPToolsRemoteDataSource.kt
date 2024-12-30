@@ -3,7 +3,7 @@ package com.citrus.claudemcpclient.data.datasource
 import com.citrus.claudemcpclient.core.network.MCPToolsService
 import com.citrus.claudemcpclient.core.model.ToolRequest
 import com.citrus.claudemcpclient.core.model.ToolResponse
-import io.modelcontextprotocol.kotlin.sdk.Tool
+import io.modelcontextprotocol.kotlin.sdk.model.Tool
 import javax.inject.Inject
 
 class MCPToolsRemoteDataSource @Inject constructor(
