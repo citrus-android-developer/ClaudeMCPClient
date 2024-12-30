@@ -7,8 +7,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
-import io.modelcontextprotocol.kotlin.sdk.Tool
-import kotlinx.serialization.json.Json
+import io.modelcontextprotocol.kotlin.sdk.model.Tool
 
 @Composable
 fun MCPToolsScreen(
@@ -16,25 +15,42 @@ fun MCPToolsScreen(
     viewModel: MCPToolsViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
-    val availableTools by viewModel.availableTools.collectAsState()
-    var selectedTool by remember { mutableStateOf<Tool?>(null) }
-    var parameters by remember { mutableStateOf("") }
+    var showToolSelector by remember { mutableStateOf(false) }
 
     Column(modifier = modifier.fillMaxSize().padding(16.dp)) {
-        DropdownMenu(
-            expanded = false,
-            onDismissRequest = { },
+        // Tool Selection
+        OutlinedButton(
+            onClick = { showToolSelector = true },
             modifier = Modifier.fillMaxWidth()
         ) {
-            availableTools.forEach { tool ->
-                DropdownMenuItem(
-                    text = { Text(tool.name) },
-                    onClick = { selectedTool = tool }
-                )
-            }
+            Text(uiState.selectedTool?.name ?: "Select a Tool")
         }
 
-        selectedTool?.let { tool ->
+        if (showToolSelector) {
+            AlertDialog(
+                onDismissRequest = { showToolSelector = false },
+                title = { Text("Select Tool") },
+                text = {
+                    Column {
+                        uiState.availableTools.forEach { tool ->
+                            TextButton(
+                                onClick = {
+                                    viewModel.selectTool(tool)
+                                    showToolSelector = false
+                                },
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                Text(tool.name)
+                            }
+                        }
+                    }
+                },
+                confirmButton = {}
+            )
+        }
+
+        // Selected Tool Description
+        uiState.selectedTool?.let { tool ->
             Text(
                 text = tool.description ?: "No description available",
                 style = MaterialTheme.typography.bodyMedium,
@@ -42,76 +58,107 @@ fun MCPToolsScreen(
             )
         }
 
+        // Parameters Input
         OutlinedTextField(
-            value = parameters,
-            onValueChange = { parameters = it },
+            value = uiState.parameters,
+            onValueChange = { viewModel.updateParameters(it) },
             label = { Text("Parameters (JSON format)") },
             modifier = Modifier.fillMaxWidth()
+                .padding(vertical = 8.dp)
         )
 
+        // Execute Button
         Button(
-            onClick = {
-                selectedTool?.let { tool ->
-                    try {
-                        val paramMap = Json.decodeFromString<Map<String, Any>>(parameters)
-                        viewModel.executeTool(tool.name, paramMap)
-                    } catch (e: Exception) {
-                        // Handle JSON parsing error
-                    }
-                }
-            },
-            enabled = selectedTool != null,
+            onClick = { viewModel.executeTool() },
+            enabled = uiState.selectedTool != null && !uiState.isLoading,
             modifier = Modifier.align(Alignment.End)
         ) {
             Text("Execute Tool")
         }
 
-        when (uiState) {
-            is MCPToolsState.Loading -> {
-                Box(
-                    modifier = Modifier.fillMaxWidth(),
-                    contentAlignment = Alignment.Center
-                ) {
-                    CircularProgressIndicator()
-                }
-            }
-            is MCPToolsState.Success -> {
-                ToolExecutionCard(
-                    toolName = selectedTool?.name ?: "",
-                    result = (uiState as MCPToolsState.Success).data.toString(),
-                    modifier = Modifier.fillMaxWidth()
-                )
-            }
-            is MCPToolsState.Error -> {
-                Card(
-                    modifier = Modifier.fillMaxWidth(),
-                    colors = CardDefaults.cardColors(
-                        containerColor = MaterialTheme.colorScheme.errorContainer
+        // Result/Error Display
+        Box(
+            modifier = Modifier.fillMaxWidth()
+                .padding(vertical = 16.dp)
+        ) {
+            when {
+                uiState.isLoading -> {
+                    CircularProgressIndicator(
+                        modifier = Modifier.align(Alignment.Center)
                     )
-                ) {
-                    Column(modifier = Modifier.padding(16.dp)) {
-                        Text(
-                            text = "Error",
-                            style = MaterialTheme.typography.titleMedium,
-                            color = MaterialTheme.colorScheme.error
-                        )
-                        Spacer(modifier = Modifier.height(8.dp))
-                        Text(
-                            text = (uiState as MCPToolsState.Error).message,
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onErrorContainer
-                        )
-                    }
+                }
+                uiState.error != null -> {
+                    ErrorCard(
+                        error = uiState.error!!,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                }
+                uiState.result != null -> {
+                    ResultCard(
+                        toolName = uiState.selectedTool?.name ?: "",
+                        result = uiState.result.toString(),
+                        modifier = Modifier.fillMaxWidth()
+                    )
                 }
             }
-            MCPToolsState.Initial -> {
-                Text(
-                    text = "Select a tool and provide parameters to begin",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.padding(vertical = 16.dp)
-                )
-            }
+        }
+    }
+}
+
+@Composable
+fun ErrorCard(error: String, modifier: Modifier = Modifier) {
+    Card(
+        modifier = modifier,
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.errorContainer
+        )
+    ) {
+        Column(modifier = Modifier.padding(16.dp)) {
+            Text(
+                text = "Error",
+                style = MaterialTheme.typography.titleMedium,
+                color = MaterialTheme.colorScheme.error
+            )
+            Spacer(modifier = Modifier.height(8.dp))
+            Text(
+                text = error,
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onErrorContainer
+            )
+        }
+    }
+}
+
+@Composable
+fun ResultCard(
+    toolName: String,
+    result: String,
+    modifier: Modifier = Modifier
+) {
+    Card(
+        modifier = modifier,
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surfaceVariant
+        )
+    ) {
+        Column(modifier = Modifier.padding(16.dp)) {
+            Text(
+                text = "Tool: $toolName",
+                style = MaterialTheme.typography.titleMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            Spacer(modifier = Modifier.height(8.dp))
+            Text(
+                text = "Result:",
+                style = MaterialTheme.typography.titleSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            Spacer(modifier = Modifier.height(4.dp))
+            Text(
+                text = result,
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
         }
     }
 }
